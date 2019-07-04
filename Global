@@ -1,0 +1,383 @@
+#### Librerias ####
+install.packages("readxl")
+library(readxl)
+install.packages("echarts4r")
+library(echarts4r)
+install.packages("shinydashboard")
+library(shinydashboard)
+install.packages("shiny")
+library(shiny)
+install.packages("tidyverse")
+library(tidyverse)
+install.packages("jsonlite")
+library(jsonlite)
+library(lubridate)
+
+#### Datos ####
+setwd("C:/Users/Home/Downloads")
+T_Mortalidad <- read_excel("Tabla_mortalidad.xlsx",sheet = "Tabla ano")
+Descuento_K1 <- read_excel("Tabla_mortalidad.xlsx", sheet = "K1_amparo_basico_VIM2")
+
+#### Variables seguro generico ####
+#Edad=23 #### Edad actuarial del asegurado 
+{n=5  #### Periodo de cobertura en años
+N=1    #### Número de primas a pagar
+#Sexo= "F" #### Masculino o Femenino
+Sexo_SG= "Femenino"
+interes=0.03 #### Interes que se maneja 
+Monto_Asegurado= 10000000 #### Suma por la cual se asegura 
+ano_T=9803
+mitad=0
+Fecha_I_Seguro="2019/03/29"
+Fecha_N="1996/04/26"
+
+Fecha_corte=2019
+
+Edad=Edad_SG(Fecha_I_Seguro,Fecha_N)
+#### Primas ####
+Prima=A_x_n_SG(Edad,n,Sexo,ano_T,mitad,Monto_Asegurado,interes)/a_x_SG(Edad,N,Sexo,interes,ano_T,mitad,"Anticipado")
+Primas=c(rep(Prima,N),rep(0,n-N))
+S_Generico(Edad,n,N,Sexo,interes,ano_T,mitad,Monto_Asegurado,Primas,Fecha_corte,Fecha_I_Seguro)}
+
+Sexo_SG="Masculino"
+ano_T_SG="1984-1988"
+mitad_SG="Si"
+# Sexo=as.character(ifelse(Sexo_SG=="Masculino","M","F"))
+# ano_T=as.numeric(ifelse(ano_T_SG=="1984-1988","8488","9803"))
+# mitad=as.numeric(ifelse(mitad_SG=="Si",1,0))
+
+
+
+######################################## Funciones para seguro generico ########################################
+
+#### Función que saca una tabla con los respectivos valores de px, qx, v y edad, de acuerdo a ciertos parametros ####
+PQX_SG=function(Edad,n,Sexo,ano_T,mitad){
+  Edades=seq(Edad,Edad+n-1,1)
+  if(ano_T==9803){
+    if(mitad==1){
+      if(Sexo=="M"){
+        qx <- T_Mortalidad$qx_H2[T_Mortalidad$Edad_x%in%Edades] 
+      }else{ 
+        qx <- T_Mortalidad$qx_M2[T_Mortalidad$Edad_x%in%Edades]}
+    }else{
+      if(Sexo=="M"){
+        qx <- T_Mortalidad$qx_H[T_Mortalidad$Edad_x%in%Edades]
+      }else{
+        qx <- T_Mortalidad$qx_M[T_Mortalidad$Edad_x%in%Edades]}}
+  }else{
+    if(mitad==1){
+      qx <- T_Mortalidad$qx2[T_Mortalidad$Edad_x%in%Edades]
+    }else{
+      qx <- T_Mortalidad$qx[T_Mortalidad$Edad_x%in%Edades]}
+  }
+  px=c(1,1-qx[-n]) 
+  npx <- cumprod(px)
+  data.frame(Edades,px,qx,npx)
+}
+PQX_SG(Edad,n,Sexo,ano_T,mitad)
+  
+#### Esta función calcula la prima simple neta de un seguro con duración "n", para una persona de edad "Edad",  #### 
+#### Sexo= Masculino "M" or Femenino "F", con cierto interes ####
+A_x_n_SG=function(Edad,n,Sexo,ano_T,mitad,Monto_Asegurado,interes){
+  Datos_Iniciales=PQX_SG(Edad,n,Sexo,ano_T,mitad)
+  v <- 1/(1+interes)^((1:n)-ifelse(mitad==1,0.5,0))
+  Ax=Monto_Asegurado*sum(v*Datos_Iniciales$npx*Datos_Iniciales$qx);Ax
+}
+A_x_n_SG(Edad,n,Sexo,ano_T,mitad,Monto_Asegurado,interes)
+  
+#### Esta función calcula una renta con interes anticipado o vencido a N periodos, para los pagos de las primas ####
+a_x_SG=function(Edad,N,Sexo,interes,ano_T,mitad,Tipo){
+  Tip=ifelse(Tipo=="Anticipado",0,1)
+  Tabla=PQX_SG(Edad,N+Tip,Sexo,ano_T,mitad)
+  v=1/(1+interes)^((0+Tip):(N-1+Tip))
+  npx=if(Tip==0){
+    Tabla$npx}else{
+      Tabla$npx[-1]
+    }
+  sum(v*npx)
+}
+a_x_SG(Edad,N,Sexo,interes,ano_T,mitad,"Vencido")
+a_x_SG(Edad,N,Sexo,interes,ano_T,mitad,"Anticipado")
+
+#### Esta función calcula el tiempo de duración de un seguro que tiene como prima unica ####
+#### la reserva, esto para saber cuanto le durá el seguro de acuerdo al ahorro que la persona tenga   
+Duracion_SG<-function(comienzo,Sexo,interes,ano_T,mitad,Ahorro,Monto_Asegurado){
+  A=rep(0,95-comienzo) 
+  i <- 1
+  while (i <= (95-comienzo))
+  {
+    A[i]=A_x_n_SG(Edad=comienzo,n=i,Sexo,ano_T,mitad,Monto_Asegurado,interes)
+    i <- i + 1 
+  }
+  for(l in 1:(94-comienzo)){
+    if(A[l]<=Ahorro & A[l+1]>=Ahorro){
+      ano=l
+    }
+  }
+  anoss=ifelse(A[1]>Ahorro,0,ano)
+  dias=((Ahorro-ifelse(anoss==0,0,A[anoss]))/(A[anoss+1]-ifelse(anoss==0,0,A[anoss])))*360
+  dias[is.na(dias)]<-0
+  Meses=trunc(dias/30)
+  Dias=dias-Meses*30
+  anos_Vencidos=trunc(Meses/12)
+  meses_Vencidos=Meses-anos_Vencidos*12
+  Tiempo=(ifelse((dias+anoss)>0,paste("El seguro durará",anoss,"Años,",Meses,"meses y",round(Dias,2),"días"),
+               paste("El seguro ya se vencio hace",-anos_Vencidos,"Años,",-meses_Vencidos,"meses y",round(-Dias,2),"días")))
+ Total_Cubri=ifelse((dias+anoss)>0,(anoss*360+Meses*30+Dias),-(-anos_Vencidos*360-meses_Vencidos*30-Dias))
+ list(Tiempo,Total_Cubri)
+  }
+Duracion_SG(comienzo,Sexo,interes,ano_T,mitad,Ahorro,Monto_Asegurado)
+
+#### Esta función calcula el flujo que requiere IFRS17
+Flujo_SG<-function(Edad,n,Sexo,ano_T,mitad,inicio,fin,Monto_Asegurado){
+  Tabla=PQX_SG(Edad,n,Sexo,ano_T,mitad)
+  qx=Tabla$qx[inicio:fin]
+  npx=cumprod(c(1,(Tabla$px[(inicio):fin])[-1]))
+  flujo=npx*qx*Monto_Asegurado;flujo
+}
+Flujo_SG(Edad,n,Sexo,ano_T,mitad,inicio,fin,Monto_Asegurado)
+
+#### Calcula la edad de la persona según las fechas ####
+Cuantos_Edad<-function(Fecha_I_Seguro,Fecha_N){
+  fecha1=ymd(Fecha_I_Seguro) #### Inicio seguro
+  fecha0=ymd(Fecha_N)#### Fecha nacimiento
+  Edad=as.numeric(round((ymd(fecha1)-ymd(fecha0))/365,0))
+  Edad
+}
+Edad=Cuantos_Edad(Fecha_I_Seguro,Fecha_N)
+
+#### Esta función da como resultado una tabla con los valores mas importantes y el tiempo estimado que durará ####
+#### el seguro con la reserva que se tiene, teniendo en cuenta el monto asegurado y los demas parametros
+S_Generico=function(Edad,n,N,Sexo_SG,interes,ano_T,mitad,Monto_Asegurado,Primas,Fecha_corte,Fecha_I_Seguro){
+  Sexo=as.character(ifelse(Sexo_SG=="Masculino","M","F"))
+  #ano_T=as.numeric(ifelse(ano_T_SG=="1984-1988","8488","9803"))
+  #mitad=as.numeric(ifelse(mitad_SG=="Si",1,0))
+  Tabla=PQX_SG(Edad,n,Sexo,ano_T,mitad)
+  Ax=rep(0,n)
+  i <- 1
+  while (i <= n)
+  {
+    Ax[i]=A_x_n_SG(Edad+i-1,n=1,Sexo,ano_T,mitad,Monto_Asegurado,interes)
+    i <- i + 1 
+  }
+  Diferencia=Primas-Ax
+  nEx=c(rep(1/(1+interes)^1,n-1)*Tabla$px[-1],1)  #### El último es 1¿?
+  Saldo=rep(0,n)
+  i <- 1
+  while (i <= n)
+  {
+    Saldo[i]=ifelse(i==1,Diferencia[1]/nEx[1],(Saldo[i-1]+Diferencia[i])/nEx[i])
+    i <- i + 1 
+  }
+  Duracion=rep(0,n)
+  j <- 1
+  while (j <= n)
+  {
+    comienzo=c(Tabla$Edades,Tabla$Edades[n]+1)[j+1]
+    Ahorro=Saldo[j]
+    Duracion[j]=Duracion_SG(comienzo,Sexo,interes,ano_T,mitad,Ahorro,Monto_Asegurado)[1]
+    j <- j + 1 
+  }
+  Tiempo_Duracion=unlist(Duracion)
+  z=c(0:n)
+  Anoo=seq(year(ymd(Fecha_I_Seguro)),year(ymd(Fecha_I_Seguro))+n)
+  A=c(Tabla$Edades,Tabla$Edades[n]+1)
+  B=c(round(Primas,4),0)
+  C=c(round(Ax,4),0)
+  D=c(0,round(Saldo,4))
+  E=c(0,Tiempo_Duracion)
+  inicio=which(Anoo==as.numeric(Fecha_corte))
+  fin=ifelse(Saldo[n]>=0,n,which(Saldo<10)[1])
+  lujo=unlist(ifelse(inicio<=fin,list(Flujo_SG(Edad,n,Sexo,ano_T,mitad,inicio,fin,Monto_Asegurado)),list(0)))
+  flujo=c(rep(0,inicio-1),lujo,rep(0,1+(n-(length(lujo)+inicio-1))))
+  Tabla1=data.frame(z,Anoo,A,B,C,flujo,D,E)
+  colnames(Tabla1)=c("n","Año","Edad","Primas (BOY)","Ax anual (BOY)","Flujo (EOY)","Reserva retrospectiva (BOY)","Seguro prorrogado (BOY)")
+  Tabla1
+}
+S_Generico(Edad,n,N,Sexo,interes,ano_T,mitad,Monto_Asegurado,Primas,Fecha_corte,Fecha_I_Seguro)
+  
+#### Criterios para definir número de primas y tiempo de cobertura
+Tiempo_cober<-function(Edad){
+  if(Edad>=76){
+    p=list(5)
+  }else{
+    if(Edad<=75 & Edad>=66){
+      p=list(5,10)
+    }else{
+      if(Edad<=65 & Edad>=56 ){
+        p=list(5,10,20)
+      }else{
+        if(Edad<=55){
+          p=list(5,10,20,30)
+        }
+      }
+    }
+  }
+  p
+}
+numero_prima<-function(n_sup){
+  if(n_sup==5){
+    p=list(1,2)
+  }else{
+    if(n_sup==10){
+      p=list(1,2,6)
+    }else{
+      p=list(1,2,6,10)
+    }
+  }
+  p
+}
+
+
+
+######################################## Seguro VIM 2 ########################################
+
+#### Variables seguro generico ####
+
+
+{n=5  #### Periodo de cobertura en años
+N=2   #### Número de primas a pagar
+Sexo= "M" #### Masculino o Femenino
+Sexo_VIM2= "Femenino"
+interes=0.03 #### Interes que se maneja 
+Monto_Asegurado= 10000000 #### Suma por la cual se asegura 
+Fecha_I_Seguro="2019/03/29"
+Fecha_N="1956/04/26"
+Fecha_corte=2019
+Edad=Edad_SG(Fecha_I_Seguro,Fecha_N)
+#### Primas ####
+K_1=k1_VIM2(Edad,Sexo,N,n)
+K_2=k2_VIM2(Monto_Asegurado)
+Tabla_Prob1=Ax_VIM2(Edad,Sexo,n,N,interes,Monto_Asegurado,K_1,K_2)
+
+=Tabla_Prob1$Prima
+Primas_VIM2=c(rep(Primas_VIM,N),rep(0,n-N))
+General_VIM2(Edad,n,N,interes,Sexo_VIM2,Monto_Asegurado,Primas_VIM2,Fecha_corte,Fecha_I_Seguro)}
+
+
+
+######################################## Funciones para VIM 2 ########################################
+k1_VIM2<- function(Edad,Sexo,N,n){
+  as.numeric(filter(Descuento_K1, EDAD%in%Edad)[,paste0(Sexo,"_",N,"_",n)]) 
+}
+k1_VIM2(Edad,Sexo,N,n)
+  
+k2_VIM2<- function(Monto_Asegurado){
+  Descuento_VA=data.frame("Monto"=c(0,4e+07,4.5e+07,6.5e+07,9e+07,1.2e+08,12e+24),"Descuento"=c(0,0.01,0.04,0.075,0.09,0.11,0.11))
+  for(k in 1:6){
+    if(Monto_Asegurado>=Descuento_VA[k,1] & Monto_Asegurado<=Descuento_VA[k+1,1]){
+      descuento=k
+    }
+  }
+  Descuento_VA$Descuento[descuento]
+}
+k2_VIM2(Monto_Asegurado)
+
+Ax_VIM2<-function(Edad,Sexo,n,N,interes,Monto_Asegurado,K_1,K_2){
+  G_fijos=c(0.002416,rep(0.000944,n-1))   #### Es el porcentaje de gastos fijos de expedición y administración de la póliza del seguro Vida a mi Medida 2 y 3, para el primero y demás años
+  G_variables=c(0.1511, rep(0.0974,n-1))   #### es el porcentaje de gastos variables de expedición y administración de la póliza del seguro “Vida a mi Medida 2 y 3, para el primero y demás años
+  B=0.1
+  Datos=data.frame(PQX_SG(Edad,n,Sexo,ano_T="9803",mitad=1)) 
+  T_z= (Datos$qx*1/(1+interes)^(0.5)+G_fijos)/(1-(B+G_variables))
+  qTAR=(1-K_1)*(1-K_2)*T_z
+  npTAR=c(1,cumprod(1-(1+interes)^0.5*qTAR))[1:n]
+  Ax_2=Monto_Asegurado*sum(qTAR*npTAR*1/(1+interes)^(0:(n-1)))
+  v=1/(1+interes)^(0:(n-1))
+  comi=(0.35+0.25*sum(v[-1]))/sum(v)
+  Denominador=sum((1/(1+interes)^(0:(N-1)))*(1-comi)*npTAR[1:N])
+  C=Ax_2/Denominador
+  list("Edad"=Datos$Edades,"qTAR"=qTAR,"npTAR"=npTAR,"Ax_2"=Ax_2,"Prima"=C,"Comision"=comi)
+}
+Ax_VIM2(Edad,Sexo,n,N,interes,Monto_Asegurado,K_1,K_2)
+  
+Duracion_VIM2<-function(comienzo,Sexo,interes,Ahorro,Monto_Asegurado,K_1,K_2){
+  A=rep(0,98-comienzo)
+  i <- 1
+  while (i <= (98-comienzo))
+  {
+    A[i]=as.numeric(Ax_VIM2(Edad=comienzo,Sexo,n=i,N=1,interes,Monto_Asegurado,K_1,K_2)[4])*(1-as.numeric(Ax_VIM2(Edad=comienzo,Sexo,n=i,N=1,interes,Monto_Asegurado,K_1,K_2)[6]))
+    i <- i + 1 
+  }
+  for(l in 1:(97-comienzo)){
+    if(A[l]<=Ahorro & A[l+1]>=Ahorro){
+      ano_duracion=l
+    }
+  }
+  anoss=ifelse(A[1]>Ahorro,0,ano_duracion)
+  dias=((Ahorro-ifelse(anoss==0,0,A[anoss]))/(A[anoss+1]-ifelse(anoss==0,0,A[anoss])))*360 
+  dias[is.na(dias)]<-0
+  Meses=trunc(dias/30)
+  Dias=dias-Meses*30
+  anos_Vencidos=trunc(Meses/12)
+  meses_Vencidos=Meses-anos_Vencidos*12
+  Tiempo=(ifelse((dias+anoss)>0,paste("El seguro durará",anoss,"Años,",Meses,"meses y",round(Dias,2),"días"),
+                 paste("El seguro ya se vencio hace",-anos_Vencidos,"Años,",-meses_Vencidos,"meses y",round(-Dias,2),"días")))
+  Total_Cubri=ifelse((dias+anoss)>0,(anoss*360+Meses*30+Dias),-(-anos_Vencidos*360-meses_Vencidos*30-Dias))
+  list(Tiempo,Total_Cubri)
+}
+Duracion_VIM2(comienzo,Sexo,interes,Ahorro,Monto_Asegurado,K_1,K_2)
+
+
+Flujo_VIM2<-function(inicio,fin,Sexo,Monto_Asegurado,interes,K_1,K_2){
+  datos=Ax_VIM2(Edad=inicio,Sexo,n=fin,N=1,interes,Monto_Asegurado,K_1,K_2)
+  qx=datos$qTAR
+  npx=datos$npTAR
+  flujo=npx*qx*Monto_Asegurado;flujo
+}
+Flujo_VIM2(inicio,fin,Sexo,Monto_Asegurado,interes,K_1,K_2)
+
+General_VIM2<-function(Edad,n,N,interes,Sexo_VIM2,Monto_Asegurado,Primas_VIM2,Fecha_corte,Fecha_I_Seguro){
+  Sexo=as.character(ifelse(Sexo_VIM2=="Masculino","M","F"))
+  K_1=k1_VIM2(Edad,Sexo,N,n)
+  K_2=k2_VIM2(Monto_Asegurado)
+  datos=Ax_VIM2(Edad,Sexo,n,N,interes,Monto_Asegurado,K_1,K_2)
+  qTAR=datos$qTAR
+  comi=datos$Comision
+  segundo=Primas_VIM2*(1-comi)
+  tercero=Monto_Asegurado*qTAR
+  Denominador=1-(1+interes)^(0.5)*qTAR
+  Reserva=rep(0,n)
+  i <- 1
+  while (i <= n)
+  {
+    Reserva[i]=ifelse(i==1,(segundo[1]-tercero[1])/Denominador[1],(Reserva[i-1]*(1+interes)+segundo[i]-tercero[i])/Denominador[i])
+    i <- i + 1 
+  }
+  Duracion=rep(0,n)
+  j <- 1
+  while (j <= n)
+  {
+    comienzo=datos$Edad[j]
+    Ahorro=Reserva[j]
+    Duracion[j]=Duracion_VIM2(comienzo,Sexo,interes,Ahorro,Monto_Asegurado,K_1,K_2)[1]
+    j <- j + 1 
+  }
+  Tiempo_Duracion=unlist(Duracion)
+  Anoo=seq(year(ymd(Fecha_I_Seguro)),year(ymd(Fecha_I_Seguro))+n)
+  inicio=datos$Edad[which(Anoo==as.numeric(Fecha_corte))]
+  fin=datos$Edad[which(Reserva<10)[1]]-inicio+1
+  lujo=Flujo_VIM2(inicio,fin,Sexo,Monto_Asegurado,interes,K_1,K_2)
+  Flujo=c(rep(0,which(datos$Edad==inicio)-1),lujo,rep(0,1+(n-(length(lujo)+which(datos$Edad==inicio)-1))))
+  z=c(0:n)
+  A=c(datos$Edad,datos$Edad[n]+1)
+  B=c(round(Primas_VIM2,4),0)
+  D=c(0,round(Reserva,2))
+  E=c(0,Tiempo_Duracion)
+  C=c(round(qTAR,4),0)
+  Tabla1=data.frame(z,Anoo,A,B,C,Flujo,D,E)
+  colnames(Tabla1)=c("n","Año","Edad","Primas (BOY)","TAR qx","Flujo (EOY)","Reserva retrospectiva (BOY)","Seguro prorrogado (BOY)")
+  Tabla1
+}
+General_VIM2(Edad,n,N,interes,Sexo_VIM2,Monto_Asegurado,Primas_VIM2,Fecha_corte,Fecha_I_Seguro)
+
+
+
+
+
+
+
+
+
+
+
+
