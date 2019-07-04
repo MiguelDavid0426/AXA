@@ -1,0 +1,386 @@
+server <- function(input, output) {
+  #############################     Función seguro generico     #############################  
+  #### Esta parte calcula la edad del asegurado ####
+  Fecha_edad_SG <- reactive({
+    Fecha_I_Seguro1=input$Fecha1_SG #### Inicio seguro
+    Fecha_N1=input$Fecha0_SG #### Fecha nacimiento    
+    Cuantos_Edad(Fecha_I_Seguro1,Fecha_N1)
+  })
+  output$F_edad_SG<- renderText({
+    Fecha_edad_SG()
+  })
+  
+  #### De acuerdo a la edad, calcula los posibles tiempos de cobertura del seguro ####
+  output$Tiempo_cober_SG<-renderUI(
+    selectInput(inputId="n_SG", label ="Tiempo de cobertura (años)", unlist(Tiempo_cober(Fecha_edad_SG())))
+  )
+
+  #### Calcula la fecha de finalización del seguro ####
+  output$Fecha2_SG<- renderText({
+    fecha1=input$Fecha1_SG
+    fecha_fin_SG=as.character(paste0(day(fecha1),"/",month(fecha1),"/",as.numeric(year(fecha1))+as.numeric(input$n_SG)))
+    fecha_fin_SG
+  })
+  
+  #### Calcula el número de primas según el tiempo de cobertura ####
+  output$numero_prima_SG<-renderUI(
+    selectInput(inputId="N_SG", label = "Número de primas", unlist(numero_prima(as.numeric(input$n_SG))))
+  )
+  #### Valor de la prima según los parámetros ####
+  Primas_Panel_S <- reactive({
+    Edad1_SG=as.numeric(Fecha_edad_SG())
+    n1_SG=as.numeric(input$n_SG)
+    N1_SG=as.numeric(input$N_SG)
+    Sexo1_SG=as.character(ifelse(input$Sexo_SG=="Masculino","M","F"))
+    ano_T1_SG=as.numeric(ifelse(input$ano_T_SG=="1984-1988","8488","9803"))
+    mitad1_SG=as.numeric(ifelse(input$mitad_SG=="Si",1,0))
+    interes1_SG=as.numeric(input$interes_SG)
+    Monto_Asegurado1_SG=as.numeric(input$Monto_Asegurado_SG)*1000000
+    Prima1_SG=format(A_x_n_SG(Edad1_SG,n1_SG,Sexo1_SG,ano_T1_SG,mitad1_SG,Monto_Asegurado1_SG,interes1_SG)/a_x_SG(Edad1_SG,N1_SG,Sexo1_SG,interes1_SG,ano_T1_SG,mitad1_SG,"Anticipado"), scientific = F)
+    Prima1_SG[1]
+  })
+  output$Valor_SG<-renderText({
+    Primas_Panel_S()
+  })
+  ### Cosas a mostrar ####
+  # output$Primas<-renderPrint(
+  #   #class(Fecha_edad_SG())
+  #    #input$mitad_SG
+  #    as.numeric(ifelse(input$ano_T_SG=="1984-1988","8488","9803"))
+  #    #mitad=as.numeric(ifelse(input$mitad_SG=="Si",1,0))
+  # )
+  
+
+  #### Introducir las primas ####
+  output$Primas_Panel_SG <- renderUI({ 
+    lapply(1:input$N_SG, function(i) {
+      column(8,
+             numericInput(inputId=paste0("Prima_",i,"SG"),label=paste("Prima",i), value=Primas_Panel_S())
+      )
+    })
+  })
+  #### Valor de prima que se introduce ####
+  pagos_SG <- reactive({
+    xx = map(
+      .x = 1:input$N_SG,
+      ~ input[[paste0("Prima_",.x,"SG")]]
+    )
+  })
+  
+  #### Función que calcula todo ####
+  Tabla_SG<-reactive({
+    Edad2_SG=as.numeric(Fecha_edad_SG())
+    n2_SG=as.numeric(input$n_SG)
+    N2_SG=as.numeric(input$N_SG)
+    Sexo2_SG=input$Sexo_SG
+    ano_T2_SG=as.numeric(ifelse(input$ano_T_SG=="1984-1988","8488","9803"))
+    mitad2_SG=as.numeric(ifelse(input$mitad_SG=="Si",1,0))
+    interes2_SG=as.numeric(input$interes_SG)
+    Monto_Asegurado2_SG=as.numeric(input$Monto_Asegurado_SG)*1000000
+    Pago2_SG=unlist(pagos_SG())
+    Primas2_SG=c(Pago2_SG,rep(0,n2_SG-N2_SG))
+    Fecha_I_Seguro2=input$Fecha1_SG
+    Fecha_corte2=input$Fecha_corte_SG
+    S_Generico(Edad2_SG,n2_SG,N2_SG,Sexo2_SG,interes2_SG,ano_T2_SG,mitad2_SG,Monto_Asegurado2_SG,Primas2_SG,Fecha_corte2,Fecha_I_Seguro2)
+  })  
+  
+  #############################     Datos a mostrar seguro generico     #############################      
+  output$Datos_SG<-renderTable({
+    Datos_S=Tabla_SG()
+    #Datos_S[,c(1,2)]=round(Datos_S[,c(1,2)],0)
+    Datos_S[,c(3:7)]=format(round(Datos_S[,c(3:7)],0), big.mark = ",", scientific = F,trim=T)
+    Datos_S
+  })
+  #############################     Grafica seguro generico     #############################  
+  output$plot1_SG<-renderEcharts4r({
+    Datos_SG=data.frame(Tabla_SG())
+    df<-Datos_SG
+    list(
+      "title"=list(
+        "text"='Seguro Generico',
+        "textStyle"=list(
+          "color"='blue',
+          "fontStyle"='italic'
+        ),
+        "subtext"='Variación con respecto al tiempo',
+        "subtextStyle"=list(
+          "color"='Black',
+          "fontStyle"='oblique'
+        )
+      ),
+      "xAxis" = list(
+        "type" = "category",
+        "data" = paste(df$Edad,"años"),
+        "name"= "Edad actuarial",
+        "nameLocation"='middle',
+        "nameGap"=30,
+        "nameTextStyle"=list(
+          "color"="black",
+          "fontStyle"='oblique',
+          "fontWeight"='bolder',
+          "fontSize"=18
+        )
+      ),
+      "yAxis" = list(
+        "type" = "value",
+        "name"= "Valor",
+        "nameLocation"='middle',
+        "nameGap"=60,
+        "nameTextStyle"=list(
+          "color"="black",
+          "fontStyle"='oblique',
+          "fontWeight"='bolder',
+          "fontSize"=18
+        )
+      ),
+      "legend"=list(
+        "show"='true',
+        "type"='scroll',
+        "left" = '75%',
+        "orient" = 'vertical',
+        "top"='middle',
+        "bottom"=  '20%',
+        "align"='right',
+        "inactiveColor"= '# 2f4554',
+        "textStyle"=list(
+          "fontStyle"='oblique',
+          "fontWeight"='bolder',
+          "fontSize"=14
+        )
+      ),
+      "dataZoom"=list(
+        "type"= 'slider'
+      ),
+      "tooltip"=list(
+        "trigger"="axis",
+        "axisPointer"=list(
+          "type"= 'cross'
+        ) 
+      ),
+      "series" = list(
+        list(
+          "name"='Primas pagadas',
+          "data" = df$Primas..BOY.,
+          "type" = 'bar',
+          "barWidth"='40%'
+          #"color"= 'blue'
+        ),
+        list(
+          "name"='Valor reserva retrospectiva',
+          "data" = df$Reserva.retrospectiva..BOY.,
+          "type" = 'line',
+          "lineStyle"=list(
+            #"color"='rgb(128, 128, 128)',
+            "width"='4.5',
+            "type"='dotted'
+          )
+        ),
+        list(
+          "name"='Flujo futuro',
+          "data" = df$Flujo..EOY.,
+          "type" = 'line',
+          "areaStyle"=list(
+           
+          )
+        )
+      )
+    ) %>% 
+      toJSON(pretty = T,auto_unbox = T) %>% 
+      echarts_from_json()
+  })
+  
+  
+
+  
+  
+  #############################     Función seguro VIM2     #############################  
+  #### Esta parte calcula la edad del asegurado ####
+  Fecha_edad_VIM2 <- reactive({
+    Fecha_I_Seguro3=input$Fecha1_VIM2 #### Inicio seguro
+    Fecha_N3=input$Fecha0_VIM2 #### Fecha nacimiento    
+    Cuantos_Edad(Fecha_I_Seguro3,Fecha_N3)
+  })
+  output$F_edad_VIM2<- renderText({
+    Fecha_edad_VIM2()
+  })
+  #### De acuerdo a la edad, calcula los posibles tiempos de cobertura del seguro ####
+  output$Tiempo_cober_VIM2<-renderUI(
+    selectInput(inputId="n_VIM2", label ="Tiempo de cobertura (años)", unlist(Tiempo_cober(Fecha_edad_VIM2())))
+  )
+  #### Calcula la fecha de finalización del seguro ####
+  output$Fecha2_VIM2<- renderText({
+    fecha2=input$Fecha1_VIM2
+    fecha_fin_VIM2=as.character(paste0(day(fecha2),"/",month(fecha2),"/",as.numeric(year(fecha2))+as.numeric(input$n_VIM2)))
+    fecha_fin_VIM2
+  })
+  #### Calcula el número de primas según el tiempo de cobertura ####
+  output$numero_prima_VIM2<-renderUI(
+    selectInput(inputId="N_VIM2", label = "Número de primas", unlist(numero_prima(as.numeric(input$n_VIM2))))
+  )
+  
+  #### Valor de la prima según los parámetros ####
+  Primas_Pan_V <- reactive({
+    Edad1_VIM2=as.numeric(Fecha_edad_VIM2())
+    n1_VIM2=as.numeric(input$n_VIM2)
+    N1_VIM2=as.numeric(input$N_VIM2)
+    Sexo1_VIM2=as.character(ifelse(input$Sexo_VIM2=="Masculino","M","F"))
+    interes1_VIM2=as.numeric(input$interes_VIM2)
+    Monto_Asegurado1_VIM2=as.numeric(input$Monto_Asegurado_VIM2)*1000000
+    K_11_VIM2=k1_VIM2(Edad1_VIM2,Sexo1_VIM2,N1_VIM2,n1_VIM2)
+    K_21_VIM2=k2_VIM2(Monto_Asegurado1_VIM2)
+    format(unlist(Ax_VIM2(Edad1_VIM2,Sexo1_VIM2,n1_VIM2,N1_VIM2,interes1_VIM2,Monto_Asegurado1_VIM2,K_11_VIM2,K_21_VIM2)[5]), scientific = F)[1]
+    })
+  output$Valor_VIM2<- renderText({
+    Primas_Pan_V()
+  })
+  #### Introducir las primas ####
+  output$Primas_Panel_VIM2 <- renderUI({ 
+    lapply(1:input$N_VIM2, function(i) {
+      column(8,
+             numericInput(inputId=paste0("Prima_",i,"VIM2"),label=paste("Prima",i), value=Primas_Pan_V())
+      )
+    })
+  })
+  #### Valor de prima que se introduce ####
+  pagos_VIM2 <- reactive({
+    xx = map(
+      .x = 1:input$N_VIM2,
+      ~ input[[paste0("Prima_",.x,"VIM2")]]
+    )
+  })
+  
+  #### Función que calcula todo ####
+  Tabla_VIM2<-reactive({
+    Edad2_VIM2=as.numeric(Fecha_edad_VIM2())
+    n2_VIM2=as.numeric(input$n_VIM2)
+    N2_VIM2=as.numeric(input$N_VIM2)
+    Sexo2_VIM2=input$Sexo_VIM2
+    interes2_VIM2=as.numeric(input$interes_VIM2)
+    Monto_Asegurado2_VIM2=as.numeric(input$Monto_Asegurado_VIM2)*1000000
+    Pago2_VIM2=unlist(pagos_VIM2())
+    Primas2_VIM2=c(Pago2_VIM2,rep(0,n2_VIM2-N2_VIM2))
+    Fecha_I_Seguro4=input$Fecha1_VIM2
+    Fecha_corte4=input$Fecha_corte_VIM2
+    General_VIM2(Edad2_VIM2,n2_VIM2,N2_VIM2,interes2_VIM2,Sexo2_VIM2,Monto_Asegurado2_VIM2,Primas2_VIM2,Fecha_corte4,Fecha_I_Seguro4)
+  })  
+  
+  #############################     Datos a mostrar seguro generico     #############################      
+  output$Datos_VIM2<-renderTable({
+    Datos_VIM=Tabla_VIM2()
+    Datos_VIM[,c(3:7)]=format(round(Datos_VIM[,c(3:7)],0), big.mark = ",", scientific = F,trim=T)
+    #Datos_VIM[,c(2:7)]=format(round(Datos_VIM[,c(2:7)],0), big.mark = ",", scientific = F,trim=T)
+    Datos_VIM
+  })
+  #############################     Grafica seguro generico     #############################  
+  output$plot1_VIM2<-renderEcharts4r({
+    Datos_VIM2=data.frame(Tabla_VIM2())
+    df<-Datos_VIM2
+    list(
+      "title"=list(
+        "text"='Seguro VIM2',
+        "textStyle"=list(
+          "color"='blue',
+          "fontStyle"='italic'
+        ),
+        "subtext"='Variación con respecto al tiempo',
+        "subtextStyle"=list(
+          "color"='Black',
+          "fontStyle"='oblique'
+        )
+      ),
+      "xAxis" = list(
+        "type" = "category",
+        "data" = paste(df$Edad,"años"),
+        "name"= "Edad actuarial",
+        "nameLocation"='middle',
+        "nameGap"=30,
+        "nameTextStyle"=list(
+          "color"="black",
+          "fontStyle"='oblique',
+          "fontWeight"='bolder',
+          "fontSize"=18
+        )
+      ),
+      "yAxis" = list(
+        "type" = "value",
+        "name"= "Valor",
+        "nameLocation"='middle',
+        "nameGap"=60,
+        "nameTextStyle"=list(
+          "color"="black",
+          "fontStyle"='oblique',
+          "fontWeight"='bolder',
+          "fontSize"=18
+        )
+      ),
+      "legend"=list(
+        "show"='true',
+        "type"='scroll',
+        "left" = '75%',
+        "orient" = 'vertical',
+        "top"='middle',
+        "bottom"=  '20%',
+        "align"='right',
+        "inactiveColor"= '# 2f4554',
+        "textStyle"=list(
+          "fontStyle"='oblique',
+          "fontWeight"='bolder',
+          "fontSize"=14
+        )
+      ),
+      "dataZoom"=list(
+        "type"= 'slider'
+      ),
+      "tooltip"=list(
+        "trigger"="axis",
+        "axisPointer"=list(
+          "type"= 'cross'
+        ) 
+      ),
+      "series" = list(
+        list(
+          "name"='Primas pagadas',
+          "data" = df$Primas..BOY.,
+          "type" = 'bar',
+          "barWidth"='40%'
+          #"color"= 'blue'
+        ),
+        list(
+          "name"='Valor reserva retrospectiva',
+          "data" = df$Reserva.retrospectiva..BOY.,
+          "type" = 'line',
+          "lineStyle"=list(
+            #"color"='rgb(128, 128, 128)',
+            "width"='4.5',
+            "type"='dotted'
+          )
+        ),
+        # list(
+        #   "name"='A from x to x+1',
+        #   "data"=df$Ax.anual..BOY.,
+        #   "type"='scatter',
+        #   "symbol"='arrow',
+        #   #"symbolSize"=c(35,30),
+        #   "itemStyle"=list(
+        #     "color"= '#32cd32',
+        #     "borderType"='dotted'
+        #   )
+        # ),    
+        list(
+          "name"='Flujo futuro',
+          "data" = df$Flujo..EOY.,
+          "type" = 'line',
+          "areaStyle"=list(
+            #"color"='#ffd700'
+          )
+          # "lineStyle"=list(
+          #   "color"= '#ffd700'
+          # )
+        )
+      )
+    ) %>% 
+      toJSON(pretty = T,auto_unbox = T) %>% 
+      echarts_from_json()
+  })
+}
+shinyApp(ui, server)
