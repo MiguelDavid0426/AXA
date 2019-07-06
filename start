@@ -1,0 +1,11 @@
+#### Dirección donde se encuentra la carpeta "Trabajo Grado Shiny"
+file="C:/Users/Home/Downloads/Final_Grado" 
+setwd(file)
+install.packages("echarts4r")
+install.packages("shinydashboard")
+install.packages("shiny")
+install.packages("tidyverse")
+install.packages("lubridate")
+install.packages("jsonlite")
+library(shiny)
+runApp(file)
