@@ -1,25 +1,44 @@
-  ui <- dashboardPage (
-  dashboardHeader(title="AXA Colpatria"),
+  shinyUI(dashboardPage (skin = "blue",
+  dashboardHeader(title="Aseguradora AXA Colpatria",titleWidth = 280),
   dashboardSidebar(
+    width  = 280,
     sidebarMenu(
-      menuItem("Introducción", tabName = "Introduccion", icon = icon("ambulance")),
-      menuItem("Seguro generico", tabName = "Seguro_generico", icon = icon("american-sign-language-interpreting")),
-      menuItem("VIM 2", tabName = "VIM_2", icon = icon("american-sign-language-interpreting"))
+      menuItem("Introducción", tabName = "Introduccion", icon = icon("archway")),
+      menuItem("Seguro de riesgo", tabName = "Seguro_generico", icon = icon("hand-holding-heart")),
+      menuItem("Seguro VIM 2", tabName = "VIM_2", icon = icon("dove"))
     )
   ),
   dashboardBody(
+  #   tags$head(
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap_3.css")
+  # ),
     tabItems(
       #############################     Introducción     #############################
       tabItem(tabName = "Introduccion",
-              h1("Trabajo de grado",align="center",style="color:red"),
+              img(src="AXA.png",height=60, width=130),img(src="logounal.png",height=60, width=130, align="right"),
+              h1("Automatización para el seguro VIM 2 de la aseguradora AXA Colpatria, bajo los criterios de las nuevas normas IFRS 17",align="center",style="color:red"),
+              h4("Miguel David Benavides Galindo, Pasante reserving"),
               br(),
-              h3("")
-      ),
+              br(),
+              h3("Esta es una automatización que permite el calculo de la reserva matemática retrospectiva, el tiempo de duración para un seguro prorrogado y los flujos futuros. Esto se aplica a un seguro de riesgo y a un seguro de la compañía, con el fin de facilitar el cambio a las normas IFRS 17.",align="justify"),
+              h3("Seguro de riesgo corresponde a un seguro de vida temporal con pago de primas limitado, donde se pueden variar los datos de ingreso y ver el comportamiento del seguro através del tiempo.",align="justify"),
+              h3("VIM 2 es un seguro de vida de AXA Colpatria, denominado Vida A Mi Medida 2, donde al igual que el anterior se puede ver la variación del seguro de acuerdo a los parámetros pre-establecidos.",align="justify"),
+              br(),
+              h4("Esto es una aplicación realizada en el software estadístico R, por medio de librerías como: Shiny, echarts4r, tidyverse y ayuda de algunas otras funciones.",align="justify"),
+              h4("Este proyecto se realizo como trabajo de grado en estadística, y fue solicitado por el área de actuaría de la aseguradora AXA Colpatria",align="justify"),
+              h4("Julio-2019.")
+  
+),
       #############################     Seguro generico     #############################     
       tabItem(tabName = "Seguro_generico",
+              img(src="AXA.png",height=60, width=130),img(src="logounal.png",height=60, width=130, align="right"),
+              h1("Seguro bajo la teoría",align="center",style="color:red"),
+              br(),
+              h3("Este es un seguro genérico, según la teoria, sirve para calcular la prima de riesgo de un seguro de vida temporal con pago de primas limitado, de acurerdo a los siguientes parámetros",align="justify"),
+              h4("Se debe tener en cuenta que la edad actuarial sea mayor o igual a 20 años y que la fecha de corte se encuentre dentro de las fechas de cobertura.",align="justify"),
+              br(),
               fluidRow(
-                h3("Este es un seguro generico, según la teoria, sirve para calcular la prima de riesgo de un seguro de vida temporal con pago de primas limitado, de acurerdo a los siguientes parámetros",align="center",style="color:black"),
-                box(title="Datos del asegurado", status="primary", width = 4, collapsed = T,
+                box(title="Datos del asegurado", status="warning", width = 4, collapsed = T,
                     solidHeader = T, collapsible = T,
                     dateInput("Fecha0_SG", "Fecha de nacimiento:", value ="1996-04-26", format = "yyyy/mm/dd"),
                     dateInput("Fecha1_SG", "Fecha inicio del seguro:", value = "2019-03-29", format = "yyyy/mm/dd"),
@@ -31,7 +50,7 @@
                     h4("La fecha de finalización del seguro es:",align="center",style="color:black"),
                     h3(textOutput("Fecha2_SG"),align="center",style="color:black")
                 ),
-                box(title="Parámetros", status="primary", width = 4, collapsed = T,
+                box(title="Parámetros", status="warning", width = 4, collapsed = T,
                     solidHeader = T, collapsible = T,
                     numericInput("interes_SG",label="Tasa de interes", value=0.03,min=0,max=4, step <- 0.001),
                     selectInput("ano_T_SG", label = "Tablas de mortalidad Colombianas", c("1984-1988","1998-2003")),
@@ -42,7 +61,7 @@
                     numericInput("Fecha_corte_SG",label="Fecha de corte:", value=2019,min=1900,max=2050, step <- 1)
                     #verbatimTextOutput("Primas")
                 ),
-                box(title="Primas seguro generico", status="primary", width = 4,collapsed = T,
+                box(title="Primas seguro genérico", status="warning", width = 4,collapsed = T,
                     solidHeader = T, collapsible = T,align = "center",
                     h4("Insertar algún valor, y con separador de decimal como punto"),
                     uiOutput("Primas_Panel_SG")
@@ -61,9 +80,20 @@
       ),
       #############################     Seguro VIM 2     #############################     
       tabItem(tabName = "VIM_2",
+              img(src="AXA.png",height=60, width=130),img(src="logounal.png",height=60, width=130, align="right"),
+              h1("Seguro Vida A Mi Medida 2",align="center",style="color:red"),
+              h3("Este seguro contempla:",align="justify"),
+              h3("un amparo básico obligatorio por Muerte, Exoneración de pago de primas en caso de incapacidad total o permanente, y un monto fijo 
+                   como anticipo para gastos de exequias."),
+              h3("usa la tabla Colombiana de mortalidad, 1998-2003, y su tiempo de cobertura puede ser: 5, 10, 20 o 30 años. "),
+              h3("La edad máxima de permanencia es de 85 años y el valor asegurado se maneja en unidades, las cuales pueden ser expresadas en dólares,
+                  euros o unidades de valor real."),
+              h3("Por último la forma de pago de la prima, es con pagos limitados, es decir, pagos anuales anticipados por un periodo menor al periodo de 
+                  cubertura que sería, 1, 2, 6, o 10 pagos"),
+              h4("Se debe tener en cuenta que la edad actuarial sea mayor o igual a 20 años y que la fecha de corte se encuentre dentro de las fechas de cobertura.",align="justify"),
+              br(),
               fluidRow(
-                h3("Este es un seguro de vida de la compañia AXA Colpatria",align="center",style="color:black"),
-                box(title="Datos del asegurado", status="primary", width = 4, collapsed = T,
+                box(title="Datos del asegurado", status="info", width = 4, collapsed = T,
                     solidHeader = T, collapsible = T,
                     dateInput("Fecha0_VIM2", "Fecha de nacimiento:", value ="1996-04-26", format = "yyyy/mm/dd"),
                     dateInput("Fecha1_VIM2", "Fecha inicio del seguro:", value = "2019-03-29", format = "yyyy/mm/dd"),
@@ -76,7 +106,7 @@
                     h3(textOutput("Fecha2_VIM2"),align="center",style="color:black")
                 ),
                 
-                box(title="Parámetros", status="primary", width = 4, collapsed = T,
+                box(title="Parámetros", status="info", width = 4, collapsed = T,
                     solidHeader = T, collapsible = T,
                     numericInput("interes_VIM2",label="Tasa de interes", value=0.03,min=0,max=4, step <- 0.001),
                     uiOutput("numero_prima_VIM2"),
@@ -84,18 +114,18 @@
                     h3(textOutput("Valor_VIM2"),align="center",style="color:black"),
                     numericInput("Fecha_corte_VIM2",label="Fecha de corte:", value=2019,min=1900,max=2050, step <- 1)
                 ),
-                box(title="Primas seguro VIM 2", status="primary", width = 4,collapsed = T,
+                box(title="Primas seguro VIM 2", status="info", width = 4,collapsed = T,
                     solidHeader = T, collapsible = T,align = "center",
                     h4("Insertar algún valor, y con separador de decimal como punto"),
                     uiOutput("Primas_Panel_VIM2")
                 ),
                 box(
-                  title="Datos importantes sobre el seguro", status="info",width = 12, collapsed = T,
+                  title="Datos importantes sobre el seguro", status="warning",width = 12, collapsed = T,
                   solidHeader = T, collapsible = T,
                   tableOutput("Datos_VIM2")
                 ),
                 box(
-                  title="Resultados visuales", status="info",width = 12, collapsed = T,
+                  title="Resultados visuales", status="warning",width = 12, collapsed = T,
                   solidHeader = T, collapsible = T,
                   echarts4rOutput("plot1_VIM2")
                 )
@@ -103,4 +133,6 @@
       ) 
     )
   )
+)
+
 )
