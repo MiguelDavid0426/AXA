@@ -1,4 +1,4 @@
-server <- function(input, output) {
+shinyServer(function(input, output) {
   #############################     Función seguro generico     #############################  
   #### Esta parte calcula la edad del asegurado ####
   Fecha_edad_SG <- reactive({
@@ -176,7 +176,7 @@ server <- function(input, output) {
           )
         ),
         list(
-          "name"='Flujo futuro',
+          "name"='Flujo IFRS 17',
           "data" = df$Flujo..EOY.,
           "type" = 'line',
           "areaStyle"=list(
@@ -367,7 +367,7 @@ server <- function(input, output) {
         #   )
         # ),    
         list(
-          "name"='Flujo futuro',
+          "name"='Flujo IFRS 17',
           "data" = df$Flujo..EOY.,
           "type" = 'line',
           "areaStyle"=list(
@@ -382,5 +382,4 @@ server <- function(input, output) {
       toJSON(pretty = T,auto_unbox = T) %>% 
       echarts_from_json()
   })
-}
-shinyApp(ui, server)
+})
