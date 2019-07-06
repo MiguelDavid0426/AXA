@@ -1,0 +1,7 @@
+# AXA
+Para poder correr la aplicación se debe crear una carpeta "Shiny", en ella se encuentra, el "Global.R", "ui.R", "server.R", 
+al igual que los datos "T_Mortalidad.Rdata" y también el "start", estos son archivos R, dentro de la carpeta "Shiny" se debe crear una 
+carpeta "www" y en ella dejar las dos imagenes "AXA.png" y "logounal.png", ya con este esquema se abre en R el archivo "start", se cambia 
+file, por la dirección en donde se encuentre la carpeta "Shiny", se instalan los paquetes (si no se tienen) y re corre runApp(), 
+esto debería generar la aplicación. 
+
